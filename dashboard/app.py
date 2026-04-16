@@ -78,13 +78,13 @@ if len(date_range) == 2:
 else:
     df_filtered = df.copy()
 
-# Apply granularity
+# Apply granularity - FIXED VERSION
 if granularity == "Weekly":
-    df_filtered = df_filtered.resample('W', on='Date').mean().reset_index()
+    df_filtered = df_filtered.set_index('Date').resample('W').mean().reset_index()
 elif granularity == "Monthly":
-    df_filtered = df_filtered.resample('M', on='Date').mean().reset_index()
+    df_filtered = df_filtered.set_index('Date').resample('ME').mean().reset_index()  # Changed 'M' to 'ME'
 
-# RECALCULATE derived columns after filtering and resampling (FIX FOR THE ERROR)
+# RECALCULATE derived columns after filtering and resampling
 stress_threshold = df_filtered['Total_System_Load'].quantile(0.85)
 df_filtered['Stress_Period'] = df_filtered['Total_System_Load'] > stress_threshold
 df_filtered['Backlog_Indicator'] = df_filtered['Net_Daily_Intake'] > 0
@@ -158,7 +158,6 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 with tab1:
     st.subheader("System Load Over Time")
     
-    # Create system load chart
     fig = go.Figure()
     
     if show_cbp:
@@ -209,7 +208,6 @@ with tab1:
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # Key insights
     col1, col2 = st.columns(2)
     with col1:
         st.info(f"📊 **Peak System Load**: {df_filtered['Total_System_Load'].max():,.0f} children")
@@ -222,7 +220,6 @@ with tab2:
     col1, col2 = st.columns(2)
     
     with col1:
-        # Pie chart for current distribution
         current_cbp = df_filtered['Children in CBP custody'].iloc[-1]
         current_hhs = df_filtered['Children in HHS Care'].iloc[-1]
         
@@ -236,7 +233,6 @@ with tab2:
         st.plotly_chart(fig_pie, use_container_width=True)
     
     with col2:
-        # Area chart for comparison
         fig_area = go.Figure()
         fig_area.add_trace(go.Scatter(
             x=df_filtered['Date'],
@@ -261,7 +257,6 @@ with tab3:
     col1, col2 = st.columns(2)
     
     with col1:
-        # Net intake bar chart
         fig_intake = px.bar(
             df_filtered,
             x='Date',
@@ -274,7 +269,6 @@ with tab3:
         st.plotly_chart(fig_intake, use_container_width=True)
     
     with col2:
-        # Cumulative backlog
         fig_backlog = px.line(
             df_filtered,
             x='Date',
@@ -284,7 +278,6 @@ with tab3:
         fig_backlog.update_layout(height=400)
         st.plotly_chart(fig_backlog, use_container_width=True)
     
-    # Backlog metrics
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Total Backlog", f"{df_filtered['Cumulative_Backlog'].iloc[-1]:,.0f}")
@@ -300,7 +293,6 @@ with tab3:
 with tab4:
     st.subheader("Stress Period Analysis")
     
-    # Highlight stress periods
     stress_df = df_filtered[df_filtered['Stress_Period']]
     
     fig_stress = go.Figure()
@@ -311,7 +303,6 @@ with tab4:
         line=dict(color='blue', width=2)
     ))
     
-    # Highlight stress periods
     if len(stress_df) > 0:
         fig_stress.add_trace(go.Scatter(
             x=stress_df['Date'],
@@ -332,7 +323,6 @@ with tab4:
     fig_stress.update_layout(height=500)
     st.plotly_chart(fig_stress, use_container_width=True)
     
-    # Stress period details
     if len(stress_df) > 0:
         st.subheader("📅 Identified Stress Periods")
         st.dataframe(
@@ -344,7 +334,6 @@ with tab4:
 with tab5:
     st.subheader("Comprehensive KPI Summary")
     
-    # Calculate all KPIs
     col1, col2 = st.columns(2)
     
     with col1:
@@ -391,7 +380,6 @@ with tab5:
         }
         st.dataframe(pd.DataFrame(flow_data), use_container_width=True)
     
-    # Summary statistics
     st.markdown("### 📈 Period Summary")
     col1, col2, col3 = st.columns(3)
     
