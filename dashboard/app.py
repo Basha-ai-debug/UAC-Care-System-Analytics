@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -37,10 +37,10 @@ except Exception as e:
 if 'Load_Volatility' not in df.columns:
     df['Load_Volatility'] = df['Total_System_Load'].rolling(30).std() / df['Total_System_Load'].rolling(30).mean() * 100
 
-# Calculate KPIs
+# Calculate KPIs for original data
 total_system_load = df['Total_System_Load']
-stress_threshold = total_system_load.quantile(0.85)
-df['Stress_Period'] = total_system_load > stress_threshold
+stress_threshold_original = total_system_load.quantile(0.85)
+df['Stress_Period'] = total_system_load > stress_threshold_original
 df['Backlog_Indicator'] = df['Net_Daily_Intake'] > 0
 df['Cumulative_Backlog'] = df['Net_Daily_Intake'].cumsum()
 
@@ -83,6 +83,16 @@ if granularity == "Weekly":
     df_filtered = df_filtered.resample('W', on='Date').mean().reset_index()
 elif granularity == "Monthly":
     df_filtered = df_filtered.resample('M', on='Date').mean().reset_index()
+
+# RECALCULATE derived columns after filtering and resampling (FIX FOR THE ERROR)
+stress_threshold = df_filtered['Total_System_Load'].quantile(0.85)
+df_filtered['Stress_Period'] = df_filtered['Total_System_Load'] > stress_threshold
+df_filtered['Backlog_Indicator'] = df_filtered['Net_Daily_Intake'] > 0
+df_filtered['Cumulative_Backlog'] = df_filtered['Net_Daily_Intake'].cumsum()
+
+# Ensure 7-day rolling average exists
+if '7day_avg_load' not in df_filtered.columns:
+    df_filtered['7day_avg_load'] = df_filtered['Total_System_Load'].rolling(7).mean()
 
 # KPI Row
 st.subheader("📈 Key Performance Indicators")
@@ -129,7 +139,7 @@ with col5:
     stress_pct = (stress_days / len(df_filtered)) * 100 if len(df_filtered) > 0 else 0
     st.metric(
         "Stress Days",
-        f"{stress_days} days",
+        f"{int(stress_days)} days",
         delta=f"{stress_pct:.1f}% of period",
         help="Days above stress threshold (85th percentile)"
     )
@@ -390,7 +400,7 @@ with tab5:
     with col2:
         st.metric("Total Days", f"{len(df_filtered)}")
     with col3:
-        st.metric("Stress Days", f"{df_filtered['Stress_Period'].sum()}")
+        st.metric("Stress Days", f"{int(df_filtered['Stress_Period'].sum())}")
 
 # Footer
 st.markdown("---")
